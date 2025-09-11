@@ -1,0 +1,9 @@
+{
+  "name": "subscription-activation-vercel",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "qrcode": "^1.5.4"
+  }
+}
