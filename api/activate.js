@@ -86,10 +86,6 @@ export default async function handler(req, res) {
 
           <div class="actions">
             <button id="closeBtn" class="btn">Close this tab</button>
-            // <button id="backBtn" class="btn secondary">Go back</button>
-            // ${process.env.SHOP_DOMAIN || process.env.PORTAL_REDIRECT_URL ? `
-            //   <a class="btn secondary" href="${escapeAttr(process.env.PORTAL_REDIRECT_URL || `https://${process.env.SHOP_DOMAIN}/`)}">Return to store</a>
-            // ` : ``}
           </div>
           <div id="hint" class="hint" style="display:none;"></div>
         </div>
@@ -131,4 +127,5 @@ export default async function handler(req, res) {
 
 function escapeHtml(s=""){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function escapeAttr(s=""){ return escapeHtml(s).replace(/"/g,'&quot;'); }
+
 
