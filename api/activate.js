@@ -1,4 +1,4 @@
-// api/activate.js — resume + mark used, then redirect all users to a generic portal page
+// api/activate.js — resume + mark used, then show a success page (no redirect)
 export default async function handler(req, res) {
   try {
     if (req.method !== "GET") return res.status(405).send("Method not allowed");
@@ -37,7 +37,7 @@ export default async function handler(req, res) {
       return res.status(502).send("Resume failed");
     }
 
-    // 3) Mark used in Sheet (best effort)
+    // 3) Mark used in Sheet (best effort; don’t block success page)
     try {
       const mark = await fetch(process.env.GAS_URL, {
         method: "POST",
@@ -51,26 +51,44 @@ export default async function handler(req, res) {
       console.error("mark_used error:", e);
     }
 
-    // 4) Redirect to generic portal page
-    const target =
-      process.env.PORTAL_REDIRECT_URL ||
-      (process.env.SHOP_DOMAIN ? `https://${process.env.SHOP_DOMAIN}/a/subscriptions/manage` : null);
-
-    if (!target) {
-      // Fallback: minimal success page if no portal URL configured
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
-      return res.status(200).send(`
-        <div style="font-family:system-ui;margin:40px;max-width:560px;line-height:1.45">
-          <h2>✅ Subscription activated</h2>
-          <p>Your subscription has been resumed. Please visit your account to manage it.</p>
+    // 4) Show a success page (no redirect)
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.status(200).send(`
+      <!doctype html>
+      <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Subscription Activated</title>
+        <style>
+          body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#f7f7f8; margin:0; }
+          .card { max-width: 560px; margin: 12vh auto; background:#fff; padding:28px 28px; border-radius:16px; box-shadow: 0 6px 28px rgba(0,0,0,.07); }
+          h1 { font-size: 22px; margin: 0 0 8px; }
+          p { margin: 8px 0; color:#333; line-height:1.5 }
+          .ok { font-size: 42px; }
+          .muted { color:#666; font-size: 14px; }
+          .btn { margin-top: 14px; display:inline-block; background:#111; color:#fff; text-decoration:none; padding:10px 14px; border-radius:10px; }
+          .row { margin-top: 10px; font-size: 13px; color:#666 }
+          code { background:#f2f2f3; padding:2px 6px; border-radius:6px; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <div class="ok">✅</div>
+          <h1>Your subscription is activated</h1>
+          <p>Thanks! We’ve resumed your subscription.</p>
+          <p class="muted">Check your email for your customer portal link.</p>
+          <p class="muted">You can close this tab now.</p>
+          <div class="row">Ref: <code>${escapeHtml(subId)}</code></div>
+          <a class="btn" href="about:blank" onclick="window.close(); return false;">Close tab</a>
         </div>
-      `);
-    }
-
-    res.setHeader("Location", target);
-    return res.status(302).end();
+      </body>
+      </html>
+    `);
   } catch (err) {
     console.error("activate error:", err);
     return res.status(500).send("Server error");
   }
 }
+
+function escapeHtml(s=""){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
