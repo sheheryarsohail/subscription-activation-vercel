@@ -1,4 +1,4 @@
-// api/activate.js — resume + mark used, then show a success page (no redirect)
+// api/activate.js — resume + mark used, then show a simple success page
 export default async function handler(req, res) {
   try {
     if (req.method !== "GET") return res.status(405).send("Method not allowed");
@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     const subId = String(req.query.subId || "").trim();
     if (!code || !subId) return res.status(400).send("Missing code or subId");
 
-    // 1) Lookup the code in Google Sheet via Apps Script
+    // 1) Lookup code in Google Sheet
     if (!(process.env.GAS_URL && process.env.GAS_SECRET)) {
       return res.status(500).send("Storage not configured");
     }
@@ -37,7 +37,7 @@ export default async function handler(req, res) {
       return res.status(502).send("Resume failed");
     }
 
-    // 3) Mark used in Sheet (best effort; don’t block success page)
+    // 3) Mark used in Sheet (best effort)
     try {
       const mark = await fetch(process.env.GAS_URL, {
         method: "POST",
@@ -51,7 +51,7 @@ export default async function handler(req, res) {
       console.error("mark_used error:", e);
     }
 
-    // 4) Show a success page (no redirect)
+    // 4) Show simple success page
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     return res.status(200).send(`
       <!doctype html>
@@ -62,48 +62,34 @@ export default async function handler(req, res) {
         <title>Subscription Activated</title>
         <style>
           body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#f7f7f8; margin:0; }
-          .card { max-width: 560px; margin: 12vh auto; background:#fff; padding:28px; border-radius:16px; box-shadow: 0 6px 28px rgba(0,0,0,.07); }
+          .card { max-width: 560px; margin: 12vh auto; background:#fff; padding:28px; border-radius:16px; box-shadow: 0 6px 28px rgba(0,0,0,.07); text-align:center; }
           h1 { font-size: 22px; margin: 0 0 8px; }
           p { margin: 8px 0; color:#333; line-height:1.5 }
           .ok { font-size: 42px; }
           .muted { color:#666; font-size: 14px; }
-          .row { margin-top: 10px; font-size: 13px; color:#666 }
+          .btn { margin-top: 14px; display:inline-block; background:#111; color:#fff; text-decoration:none; padding:10px 14px; border-radius:10px; cursor:pointer; }
+          .hint { font-size:13px; color:#666; margin-top:12px; display:none; }
           code { background:#f2f2f3; padding:2px 6px; border-radius:6px; }
-          .actions { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; }
-          .btn { display:inline-block; background:#111; color:#fff; text-decoration:none; padding:10px 14px; border-radius:10px; cursor:pointer; border:0; }
-          .btn.secondary { background:#e9e9ec; color:#111; }
-          .hint { font-size:13px; color:#666; margin-top:6px; }
         </style>
       </head>
       <body>
         <div class="card">
           <div class="ok">✅</div>
           <h1>Your subscription is activated</h1>
-          <p>Thanks! We’ve resumed your subscription.</p>
+          <p>We’ve resumed your subscription.</p>
           <p class="muted">Check your email for your customer portal link.</p>
           <p class="muted">You can close this tab now.</p>
           <div class="row">Ref: <code>${escapeHtml(subId)}</code></div>
-
-          <div class="actions">
-            <button id="closeBtn" class="btn">Close this tab</button>
-          </div>
-          <div id="hint" class="hint" style="display:none;"></div>
+          <button id="closeBtn" class="btn">Close this tab</button>
+          <div id="hint" class="hint"></div>
         </div>
 
         <script>
           (function(){
             const closeBtn = document.getElementById('closeBtn');
-            const backBtn  = document.getElementById('backBtn');
             const hint     = document.getElementById('hint');
-
-            backBtn.addEventListener('click', function(){
-              if (history.length > 1) history.back();
-              else location.href = '/';
-            });
-
             closeBtn.addEventListener('click', function(){
-              // Best-effort close; browsers allow only if script-opened
-              window.open('','_self');
+              window.open('','_self'); // helps some browsers
               window.close();
               setTimeout(function(){
                 if (!document.hidden) {
@@ -125,7 +111,6 @@ export default async function handler(req, res) {
   }
 }
 
-function escapeHtml(s=""){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function escapeAttr(s=""){ return escapeHtml(s).replace(/"/g,'&quot;'); }
-
-
+function escapeHtml(s=""){ 
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); 
+}
