@@ -58,17 +58,19 @@ export default async function handler(req, res) {
     // Persist (Google Apps Script if configured; else in-memory for test)
     if (process.env.GAS_URL && process.env.GAS_SECRET) {
       await fetch(process.env.GAS_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          secret: process.env.GAS_SECRET,
-          op: "save",
-          code,
-          subscriptionId: String(subscriptionId),
-          status: "unused",
-          customerEmail
-        })
-      });
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    secret: process.env.GAS_SECRET,
+    op: "save",
+    code,
+    subscriptionId: String(subscriptionId),
+    status: "unused",
+    customerEmail,
+    qrUrl: qrDataUrl,        // NEW
+    activateUrl              // NEW
+  })
+});
     } else {
       (globalThis.__codes ||= new Map()).set(code, {
         subscriptionId: String(subscriptionId),
@@ -99,3 +101,4 @@ function makeCode(len = 12) {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
   return Buffer.from(bytes).toString("base64url").slice(0, len).toUpperCase();
 }
+
