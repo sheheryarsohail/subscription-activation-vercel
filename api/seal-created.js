@@ -1,0 +1,8 @@
+curl -X POST \
+  https://app.sealsubscriptions.com/shopify/merchant/api/webhooks \
+  -H "Content-Type: application/json" \
+  -H "X-Seal-Token: seal_token_y7ctgie33auxereu7yhts8vcbiagi14zbkm0zwjp" \
+  -d '{
+    "topic": "subscription/created",
+    "address": "https://subscription-activation-vercel.vercel.app/api/seal-created"
+  }'
