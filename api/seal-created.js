@@ -2,31 +2,78 @@
 import QRCode from "qrcode";
 import { createHmac } from "node:crypto";
 
+// small helper: safe, constant-time compare
+function timingSafeEqual_(a, b) {
+  if (!a || !b || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+// GAS save with retry + detailed result
+async function saveToGAS(payload) {
+  if (!(process.env.GAS_URL && process.env.GAS_SECRET)) {
+    return { ok: false, error: "GAS not configured" };
+  }
+
+  const url = process.env.GAS_URL;
+  const needsExec = !/\/exec(\?|$)/.test(url);
+  if (needsExec) {
+    return { ok: false, error: "GAS_URL must be the Web App /exec URL" };
+  }
+
+  const body = JSON.stringify({ secret: process.env.GAS_SECRET, ...payload });
+
+  // Retry up to 2 times on transient errors
+  let last = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 15000); // 15s
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        signal: controller.signal
+      });
+      clearTimeout(timer);
+
+      const txt = await resp.text();
+      let json;
+      try { json = JSON.parse(txt); } catch { json = { ok: false, parseError: true, raw: txt }; }
+
+      if (json?.ok) return json;
+      last = json || { ok: false, raw: txt };
+      // break on auth/config style errors; no point retrying
+      if (/unauthorized|bad secret|missing op|not_found|unknown_op/i.test(JSON.stringify(last))) break;
+    } catch (e) {
+      last = { ok: false, network: true, error: String(e) };
+    }
+    await new Promise(r => setTimeout(r, 400 * attempt)); // backoff
+  }
+  return last || { ok: false, error: "Unknown GAS error" };
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method !== "POST") return res.status(405).json({ ok: false, error: "Method not allowed" });
 
-    // --- Parse JSON safely (Vercel usually parses JSON for us if header is correct)
-    const body = typeof req.body === "object" && req.body !== null
-      ? req.body
-      : JSON.parse(req.body || "{}");
+    // --- Parse JSON safely
+    const body = typeof req.body === "object" && req.body !== null ? req.body : JSON.parse(req.body || "{}");
 
-    // --- OPTIONAL: Verify Seal webhook HMAC if SEAL_API_SECRET is set
-    // Seal sends header: X-Seal-Hmac-Sha256 (hex). We compute HMAC of the raw body.
-    // If you didn’t enable HMAC in Seal yet, keep SEAL_API_SECRET empty and this will be skipped.
+    // --- OPTIONAL: Verify Seal webhook HMAC if available
     if (process.env.SEAL_API_SECRET) {
       const raw = typeof req.body === "string" ? req.body : JSON.stringify(body);
       const sig = req.headers["x-seal-hmac-sha256"];
       const calc = createHmac("sha256", process.env.SEAL_API_SECRET).update(raw, "utf8").digest("hex");
       if (!sig || !timingSafeEqual_(calc, String(sig))) {
-        console.error("Bad Seal HMAC:", { sig, calc });
-        // You can `return res.status(401).json({ ok:false, error:"Bad signature" })`
-        // but during testing we allow it through; switch to 401 in prod if you like:
+        // Return 401 in strict prod; during dev, log and continue:
+        console.warn("Seal HMAC mismatch (continuing in dev):", { provided: sig, expected: calc });
         // return res.status(401).json({ ok:false, error:"Bad signature" });
       }
     }
 
-    // --- Extract fields from Seal payload (covers common shapes)
+    // --- Extract key fields from Seal payload
     const subscriptionId =
       (body && (body.id ?? body.subscription_id)) ??
       (body?.subscription?.id) ??
@@ -39,7 +86,6 @@ export default async function handler(req, res) {
       body?.email ?? body?.customer?.email ?? body?.data?.email ?? "";
 
     if (!subscriptionId) {
-      console.error("Missing subscriptionId in payload. Echoing body for mapping help.");
       return res.status(200).json({ ok: false, error: "Missing subscriptionId in payload", echo: body });
     }
 
@@ -52,18 +98,21 @@ export default async function handler(req, res) {
 
     // --- Pause in Seal (non-fatal if it fails)
     if (process.env.SEAL_API_KEY) {
-      const resp = await fetch("https://app.sealsubscriptions.com/shopify/merchant/api/subscription", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Seal-Token": process.env.SEAL_API_KEY
-        },
-        body: JSON.stringify({ id: Number(subscriptionId), action: "pause" })
-      });
-      if (!resp.ok) {
-        const txt = await resp.text();
-        console.error("Seal pause failed:", txt);
-        // continue anyway; we still want to emit code+QR
+      try {
+        const resp = await fetch("https://app.sealsubscriptions.com/shopify/merchant/api/subscription", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Seal-Token": process.env.SEAL_API_KEY
+          },
+          body: JSON.stringify({ id: Number(subscriptionId), action: "pause" })
+        });
+        if (!resp.ok) {
+          const txt = await resp.text();
+          console.error("Seal pause failed:", txt);
+        }
+      } catch (e) {
+        console.error("Seal pause error:", e);
       }
     } else {
       console.warn("SEAL_API_KEY missing – skipping pause call");
@@ -71,10 +120,7 @@ export default async function handler(req, res) {
 
     // --- Build activation URL
     const appUrl = (process.env.APP_URL || "").replace(/\/$/, "");
-    if (!appUrl) {
-      console.error("APP_URL missing; cannot build activateUrl");
-      return res.status(500).json({ ok: false, error: "APP_URL not set" });
-    }
+    if (!appUrl) return res.status(500).json({ ok: false, error: "APP_URL not set" });
 
     const code = makeCode(12);
     const activateUrl = `${appUrl}/api/activate?code=${encodeURIComponent(code)}&subId=${encodeURIComponent(String(subscriptionId))}`;
@@ -85,38 +131,26 @@ export default async function handler(req, res) {
       qrDataUrl = await QRCode.toDataURL(activateUrl);
     } catch (e) {
       console.error("QR generation failed:", e);
-      // still proceed; you can send just link in email
     }
 
-    // --- Persist to Google Sheet (Apps Script)
+    // --- Persist to Google Sheet (Apps Script) and surface the response
+    let gasSave = null;
     if (process.env.GAS_URL && process.env.GAS_SECRET) {
-      const saveBody = {
-        secret: process.env.GAS_SECRET,
+      gasSave = await saveToGAS({
         op: "save",
         code,
         subscriptionId: String(subscriptionId),
         status: "unused",
         customerEmail,
-        qrUrl: qrDataUrl,     // store QR data URL (base64)
-        activateUrl           // store activation link
-      };
-
-      const saveResp = await fetch(process.env.GAS_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(saveBody)
+        qrUrl: qrDataUrl,
+        activateUrl
       });
 
-      const saveTxt = await saveResp.text();
-      let saveJson;
-      try { saveJson = JSON.parse(saveTxt); } catch { saveJson = { ok: false, parseError: true, raw: saveTxt }; }
-
-      if (!saveJson?.ok) {
-        console.error("GAS save failed:", saveJson);
-        // Not fatal for response, but you may want to alert here
+      if (!gasSave?.ok) {
+        console.error("GAS save failed:", gasSave);
       }
     } else {
-      // Simple in-memory fallback for testing
+      // In-memory fallback (testing only)
       (globalThis.__codes ||= new Map()).set(code, {
         subscriptionId: String(subscriptionId),
         used: false,
@@ -124,18 +158,19 @@ export default async function handler(req, res) {
         customerEmail,
         orderId: String(orderId || "")
       });
-      console.warn("GAS_URL / GAS_SECRET not set: saved to memory only (will not persist)");
+      gasSave = { ok: false, warning: "GAS not configured; saved to memory only" };
     }
 
-    // --- Keep logs compact (don’t print entire QR base64)
+    // --- Compact logs (avoid dumping base64)
     console.log("Generated activation", {
       subscriptionId: String(subscriptionId),
       code,
       activateUrl,
+      gasOk: !!(gasSave && gasSave.ok),
       qrPreview: qrDataUrl ? qrDataUrl.slice(0, 32) + "…(base64)" : null
     });
 
-    // --- Final response (handy for testing / Shopify Flow HTTP action)
+    // --- Final response (includes gasSave so you can see why it didn't write)
     return res.status(200).json({
       ok: true,
       subscriptionId: String(subscriptionId),
@@ -143,7 +178,8 @@ export default async function handler(req, res) {
       customerEmail,
       code,
       activateUrl,
-      qrDataUrl
+      qrDataUrl,
+      gasSave
     });
   } catch (err) {
     console.error("seal-created error:", err);
@@ -153,16 +189,6 @@ export default async function handler(req, res) {
 
 /** Generate a short, URL-safe, uppercase code */
 function makeCode(len = 12) {
-  // Node 20 has WebCrypto on globalThis
   const bytes = crypto.getRandomValues(new Uint8Array(16));
   return Buffer.from(bytes).toString("base64url").slice(0, len).toUpperCase();
-}
-
-/** Constant-time compare to avoid timing leaks (best-effort) */
-function timingSafeEqual_(a, b) {
-  if (a.length !== b.length) return false;
-  // XOR every char; zero means equal
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
 }
