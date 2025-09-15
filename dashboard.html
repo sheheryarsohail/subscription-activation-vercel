@@ -61,8 +61,14 @@
 </head>
 <body>
   <div class="wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+  <h1>Activation Dashboard</h1>
+  <div style="display:flex;align-items:center;gap:10px;">
     <div class="meta" id="meta">Showing 0 of 0</div>
-    <h1>Activation Dashboard</h1>
+    <button id="refreshBtn" class="btn apply" style="padding:8px 12px;border-radius:10px;">Refresh</button>
+  </div>
+</div>
+
 
     <div class="kpis">
       <div class="k"><h3>Total</h3><div class="num" id="kTotal">–</div></div>
@@ -230,6 +236,21 @@ async function openDetail(code){
     <div class="field"><div class="label">QR</div><div class="value">${qr}</div></div>
   `;
 }
+
+const refreshBtn = document.getElementById('refreshBtn');
+refreshBtn.addEventListener('click', async () => {
+  // give a quick visual hint
+  const original = refreshBtn.textContent;
+  refreshBtn.textContent = 'Refreshing…';
+  refreshBtn.disabled = true;
+  try {
+    await load();   // re-fetches with current filters & page
+  } finally {
+    refreshBtn.disabled = false;
+    refreshBtn.textContent = original;
+  }
+});
+
 
 // initial load
 load();
