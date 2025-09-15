@@ -3,168 +3,236 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Activation Codes Dashboard</title>
+  <title>Activation Dashboard</title>
   <style>
-    :root {
-      --bg: #f9fafb;
-      --card: #ffffff;
-      --text: #111827;
-      --muted: #6b7280;
-      --primary: #111827;
-      --primary-hover: #374151;
-      --radius: 12px;
-      --shadow: 0 8px 20px rgba(0,0,0,.05);
+    :root{
+      --bg:#f6f7f8; --card:#fff; --ink:#111; --muted:#666; --bd:#e7e7ea;
+      --pill-used:#eaf7ee; --pill-used-text:#117a36;
+      --pill-unused:#fff3da; --pill-unused-text:#8f5a00;
+      --radius:14px; --shadow:0 8px 30px rgba(0,0,0,.06);
+      --accent:#111; --accent-hover:#1f1f1f; --soft:#f9f9fb;
     }
-    body { font-family: 'Inter', system-ui, sans-serif; background:var(--bg); color:var(--text); margin:0; }
-    header {top:0; color: var(--primary); padding:16px 24px;}
-    header h1 { margin:0; font-size:32px; font-weight:700; }
-    .container { padding:24px; max-width:1200px; margin:auto; }
-    .card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; margin-bottom:24px; }
-    .filters { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
-    .filters label { font-size:13px; color:var(--muted); display:flex; flex-direction:column; gap:4px; }
-    .filters input,.filters select { padding:6px 8px; border:1px solid #d1d5db; border-radius:8px; font-size:13px; }
-    .filters button { padding:6px 12px; border:none; border-radius:8px; cursor:pointer; background:var(--primary); color:#fff; font-size:13px; }
-    .filters button:hover { background:var(--primary-hover); }
-    table { width:100%; border-collapse:collapse; font-size:14px; }
-    th,td { padding:10px 12px; text-align:left; }
-    th { font-size:13px; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); background:#f3f4f6; }
-    tbody tr:nth-child(odd){ background:#fafafa; }
-    tbody tr:hover { background:#eef2ff; cursor:pointer; }
-    .totals { font-size:14px; margin-bottom:12px; }
-    .pagination { margin-top:16px; display:flex; gap:8px; align-items:center; }
-    .pagination button { padding:6px 12px; border:none; border-radius:8px; cursor:pointer; background:var(--primary); color:#fff; font-size:13px; }
-    .pagination button:disabled { background:#d1d5db; cursor:not-allowed; }
-    .drawer { position:fixed; top:0; right:0; width:420px; height:100%; background:#fff; 
-              box-shadow:-4px 0 12px rgba(0,0,0,.15); transform:translateX(100%);
-              transition:transform .3s ease; padding:28px; overflow-y:auto; }
-    .drawer.open { transform:translateX(0); }
-    .drawer h2 { margin-top:0; font-size:18px; font-weight:600; }
-    .muted { color:var(--muted); font-size:13px; }
-    .qr { max-width:100%; margin:16px 0; border:1px solid #e5e7eb; border-radius:var(--radius); }
-    .close { background:none; border:none; font-size:22px; float:right; cursor:pointer; color:var(--muted); }
-    .meta { font-size:13px; margin-top:4px; color:var(--muted); }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif;background:var(--bg);color:var(--ink)}
+    .wrap{max-width:1160px;margin:18px auto 40px;padding:0 16px}
+    h1{font-size:22px;font-weight:700;margin:6px 0 18px}
+    .meta{float:right;color:var(--muted);font-size:12px}
+    /* KPI cards */
+    .kpis{display:grid;grid-template-columns:repeat(3,minmax(200px,1fr));gap:16px;margin-bottom:16px}
+    .k{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px 20px;box-shadow:var(--shadow)}
+    .k h3{margin:0 0 6px;font-size:11px;letter-spacing:.3px;text-transform:uppercase;color:var(--muted)}
+    .k .num{font-size:26px;font-weight:800}
+    /* Filters block */
+    .block{background:var(--card);border:1px solid var(--bd);border-radius:16px;box-shadow:var(--shadow);padding:14px}
+    .filters{display:grid;grid-template-columns:1.5fr 1fr repeat(4,1fr);gap:10px;align-items:end}
+    label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+    .inp,.sel{border:1px solid var(--bd);border-radius:12px;padding:10px 12px;background:#fff;font-size:14px}
+    .btn{border:0;border-radius:12px;padding:12px 14px;font-weight:600;cursor:pointer}
+    .btn.apply{background:var(--accent);color:#fff}
+    .btn.apply:hover{background:var(--accent-hover)}
+    .btn.clear{background:#efefef;color:#111}
+    .buttons{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}
+    /* Table */
+    table{width:100%;border-collapse:separate;border-spacing:0 10px;margin-top:10px}
+    thead th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;padding:0 12px}
+    tbody tr{background:#fff;border:1px solid var(--bd);border-radius:12px;box-shadow:var(--shadow)}
+    tbody td{padding:12px}
+    tbody tr:hover{transform:translateY(-1px);transition:.15s;box-shadow:0 10px 28px rgba(0,0,0,.07)}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:600}
+    .used{background:var(--pill-used);color:var(--pill-used-text)}
+    .unused{background:var(--pill-unused);color:var(--pill-unused-text)}
+    .muted{color:var(--muted)}
+    /* Pagination */
+    .pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin:8px 2px 0}
+    .pager button{border:1px solid var(--bd);background:#fff;border-radius:10px;padding:8px 12px;cursor:pointer}
+    .pager button:disabled{opacity:.5;cursor:not-allowed}
+    /* Drawer */
+    .drawer{position:fixed;top:0;right:0;width:430px;max-width:100%;height:100%;background:#fff;box-shadow:-16px 0 36px rgba(0,0,0,.18);transform:translateX(105%);transition:transform .28s ease;z-index:50}
+    .drawer.open{transform:translateX(0)}
+    .dw-head{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid var(--bd)}
+    .dw-body{padding:16px 18px;overflow:auto;height:calc(100% - 58px)}
+    .x{border:1px solid var(--bd);background:#f4f4f5;border-radius:10px;padding:8px 10px;cursor:pointer}
+    .qr{display:block;border:1px solid var(--bd);border-radius:10px;padding:8px;max-width:260px;background:var(--soft)}
+    .field{margin:10px 0}
+    .label{font-size:12px;color:var(--muted)}
+    .value{font-size:14px}
+    code{background:#f2f2f3;padding:2px 6px;border-radius:6px}
   </style>
 </head>
 <body>
-  <header><h1>Activation Codes Dashboard</h1></header>
-  <div class="container">
+  <div class="wrap">
+    <div class="meta" id="meta">Showing 0 of 0</div>
+    <h1>Activation Dashboard</h1>
 
-    <div class="card">
-      <!-- Filters -->
+    <div class="kpis">
+      <div class="k"><h3>Total</h3><div class="num" id="kTotal">–</div></div>
+      <div class="k"><h3>Used</h3><div class="num" id="kUsed">–</div></div>
+      <div class="k"><h3>Unused</h3><div class="num" id="kUnused">–</div></div>
+    </div>
+
+    <div class="block">
       <div class="filters">
-        <label>Search<input type="text" id="q" placeholder="Code / Sub / Email"></label>
-        <label>Status
-          <select id="status">
-            <option value="">All</option>
+        <label>
+          <span>Search code / email / subscription</span>
+          <input id="q" class="inp" type="search" placeholder="e.g. ABC123 / 7103491 / jane@store.com">
+        </label>
+        <label>
+          <span>Status</span>
+          <select id="status" class="sel">
+            <option value="">All statuses</option>
             <option value="unused">Unused</option>
             <option value="used">Used</option>
           </select>
         </label>
-        <label>Issued From<input type="date" id="issuedFrom"></label>
-        <label>Issued To<input type="date" id="issuedTo"></label>
-        <label>Used From<input type="date" id="usedFrom"></label>
-        <label>Used To<input type="date" id="usedTo"></label>
-        <div style="align-self:flex-end;display:flex;gap:8px">
-          <button onclick="applyFilters()">Apply</button>
-          <button onclick="resetFilters()">Reset</button>
-        </div>
+        <label><span>Issued from</span><input id="issuedFrom" class="inp" type="date"></label>
+        <label><span>Issued to</span><input id="issuedTo" class="inp" type="date"></label>
+        <label><span>Used from</span><input id="usedFrom" class="inp" type="date"></label>
+        <label><span>Used to</span><input id="usedTo" class="inp" type="date"></label>
       </div>
 
-      <div class="totals" id="totals"></div>
-      <table id="codes">
+      <div class="buttons">
+        <button class="btn apply" id="apply">Apply</button>
+        <button class="btn clear" id="clear">Clear</button>
+      </div>
+
+      <table>
         <thead>
           <tr>
             <th>Code</th>
-            <th>Subscription</th>
+            <th>Subscription ID</th>
             <th>Status</th>
             <th>Issued</th>
             <th>Used</th>
             <th>Email</th>
           </tr>
         </thead>
-        <tbody></tbody>
+        <tbody id="tbody"></tbody>
       </table>
-      <div class="pagination">
-        <button id="prevBtn" onclick="prevPage()" disabled>← Prev</button>
-        <span id="pageInfo">Page 1</span>
-        <button id="nextBtn" onclick="nextPage()" disabled>Next →</button>
+
+      <div class="pager">
+        <button id="prev" disabled>◀ Prev</button>
+        <div id="pageInfo" class="muted">Page 1</div>
+        <button id="next" disabled>Next ▶</button>
       </div>
     </div>
   </div>
 
-  <div class="drawer" id="drawer">
-    <button class="close" onclick="closeDrawer()">×</button>
-    <div id="drawerContent">Loading…</div>
+  <!-- Drawer -->
+  <div id="drawer" class="drawer" aria-hidden="true">
+    <div class="dw-head">
+      <strong>Details</strong>
+      <button class="x" id="xbtn">Close</button>
+    </div>
+    <div class="dw-body" id="dwBody">
+      <div class="muted">Select a row…</div>
+    </div>
   </div>
 
 <script>
-let currentFilters={}, page=1, limit=20, total=0;
+const kTotal = byId('kTotal'), kUsed = byId('kUsed'), kUnused = byId('kUnused'), meta = byId('meta');
+const tbody = byId('tbody'), drawer = byId('drawer'), dwBody = byId('dwBody');
+const pageInfo = byId('pageInfo'), prevBtn = byId('prev'), nextBtn = byId('next'), applyBtn = byId('apply'), clearBtn = byId('clear');
+let filters = {}, page = 1, limit = 20, total = 0, totalPages = 1;
 
-function getFilters(){
+applyBtn.addEventListener('click', () => { filters = readFilters(); page = 1; load(); });
+clearBtn.addEventListener('click', () => { resetFilters(); page = 1; load(); });
+prevBtn.addEventListener('click', () => { if(page>1){ page--; load(); }});
+nextBtn.addEventListener('click', () => { if(page<totalPages){ page++; load(); }});
+byId('xbtn').addEventListener('click', () => drawer.classList.remove('open'));
+
+function byId(id){ return document.getElementById(id); }
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function attr(s){ return esc(s).replace(/"/g,'&quot;'); }
+function fmt(d){ if(!d) return ''; const t=new Date(d); return isNaN(t)?'':t.toLocaleString(); }
+function badge(status){ const cls = status==='used'?'used':'unused'; const txt = status==='used'?'Used':'Unused'; return `<span class="pill ${cls}">${txt}</span>`; }
+
+function readFilters(){
   return {
-    q: document.getElementById('q').value.trim(),
-    status: document.getElementById('status').value,
-    issuedFrom: document.getElementById('issuedFrom').value,
-    issuedTo: document.getElementById('issuedTo').value,
-    usedFrom: document.getElementById('usedFrom').value,
-    usedTo: document.getElementById('usedTo').value
+    q: byId('q').value.trim(),
+    status: byId('status').value,
+    issuedFrom: byId('issuedFrom').value,
+    issuedTo: byId('issuedTo').value,
+    usedFrom: byId('usedFrom').value,
+    usedTo: byId('usedTo').value
   };
 }
-function applyFilters(){ currentFilters=getFilters(); page=1; loadCodes(); }
-function resetFilters(){ ['q','status','issuedFrom','issuedTo','usedFrom','usedTo'].forEach(id=>document.getElementById(id).value=""); currentFilters={}; page=1; loadCodes(); }
+function resetFilters(){ ['q','status','issuedFrom','issuedTo','usedFrom','usedTo'].forEach(id=>byId(id).value=""); filters={}; }
 
-async function loadCodes(){
-  const params=new URLSearchParams();
-  for(const [k,v] of Object.entries(currentFilters)){ if(v) params.set(k,v); }
-  params.set('limit', limit); params.set('offset', (page-1)*limit);
-  const resp = await fetch('/api/activations?'+params.toString());
+async function load(){
+  tbody.innerHTML = `<tr><td class="muted" colspan="6" style="padding:16px">Loading…</td></tr>`;
+
+  const p = new URLSearchParams();
+  Object.entries(filters).forEach(([k,v]) => { if(v) p.set(k,v); });
+  p.set('limit', String(limit));
+  p.set('offset', String((page-1)*limit));
+
+  const resp = await fetch('/api/activations?'+p.toString(), { cache:'no-store' });
   const data = await resp.json();
-  if(!data.ok){ document.querySelector('#totals').textContent='Error loading'; return; }
-  total=data.totals.total;
-  document.querySelector('#totals').textContent=`Total: ${data.totals.total} | Used: ${data.totals.used} | Unused: ${data.totals.unused}`;
-  const tbody=document.querySelector('#codes tbody'); tbody.innerHTML='';
+
+  if(!data.ok){
+    tbody.innerHTML = `<tr><td class="muted" colspan="6" style="padding:16px">Error: ${esc(data.error||'load')}</td></tr>`;
+    return;
+  }
+
+  total = data.totals.total;
+  totalPages = Math.max(data.meta.totalPages || Math.ceil(total/limit), 1);
+
+  kTotal.textContent = data.totals.total;
+  kUsed.textContent  = data.totals.used;
+  kUnused.textContent= data.totals.unused;
+  meta.textContent   = `Showing ${Math.min(data.meta.returned, total)} of ${total}`;
+
+  pageInfo.textContent = `Page ${page} of ${totalPages}`;
+  prevBtn.disabled = page<=1;
+  nextBtn.disabled = page>=totalPages;
+
+  tbody.innerHTML = '';
+  if(!data.items.length){
+    tbody.innerHTML = `<tr><td class="muted" colspan="6" style="padding:16px">No records found.</td></tr>`;
+    return;
+  }
+
   for(const r of data.items){
-    const tr=document.createElement('tr');
-    tr.innerHTML=`
-      <td>${esc(r.code)}</td>
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><code>${esc(r.code)}</code></td>
       <td>${esc(r.subscriptionId)}</td>
-      <td>${esc(r.status)}</td>
-      <td>${r.issuedAt? new Date(r.issuedAt).toLocaleString():''}</td>
-      <td>${r.usedAt? new Date(r.usedAt).toLocaleString():''}</td>
-      <td>${esc(r.customerEmail)}</td>`;
-    tr.onclick=()=>openDetail(r.code);
+      <td>${badge(r.status)}</td>
+      <td class="muted">${fmt(r.issuedAt)}</td>
+      <td class="muted">${fmt(r.usedAt)}</td>
+      <td>${esc(r.customerEmail)}</td>
+    `;
+    tr.addEventListener('click', () => openDetail(r.code));
     tbody.appendChild(tr);
   }
-  document.getElementById('pageInfo').textContent=`Page ${page} of ${data.meta.totalPages}`;
-  document.getElementById('prevBtn').disabled=(page<=1);
-  document.getElementById('nextBtn').disabled=(page>=data.meta.totalPages);
 }
-function nextPage(){ page++; loadCodes(); }
-function prevPage(){ if(page>1){ page--; loadCodes(); } }
 
 async function openDetail(code){
-  const drawer=document.getElementById('drawer'), content=document.getElementById('drawerContent');
-  drawer.classList.add('open'); content.innerHTML='Loading…';
-  const resp=await fetch('/api/activations/'+encodeURIComponent(code)); const data=await resp.json();
-  if(!data.ok){ content.textContent='Error: '+data.error; return; }
-  const r=data.item;
-  const qrImg=r.qrUrl? `<img class="qr" src="${escapeAttr(r.qrUrl)}" alt="QR" />` : '<div class="muted">No QR saved</div>';
-  const actLink=r.activateUrl? `<a target="_blank" href="${escapeAttr(r.activateUrl)}">${esc(r.activateUrl)}</a>` : '<span class="muted">No link</span>';
-  content.innerHTML=`
-    <h2>Code ${esc(r.code)}</h2>
-    <p><b>Status:</b> ${esc(r.status)}</p>
-    <p><b>Subscription:</b> ${esc(r.subscriptionId)}</p>
-    <p><b>Email:</b> ${esc(r.customerEmail)}</p>
-    <p><b>Issued:</b> ${r.issuedAt? new Date(r.issuedAt).toLocaleString():''}</p>
-    <p><b>Used:</b> ${r.usedAt? new Date(r.usedAt).toLocaleString():''}</p>
-    <p><b>Activation Link:</b> ${actLink}</p>
-    ${qrImg}
-    <div class="meta">Ref: ${esc(r.code)}</div>`;
+  dwBody.innerHTML = '<div class="muted">Loading…</div>';
+  drawer.classList.add('open');
+
+  const resp = await fetch('/api/activations/'+encodeURIComponent(code));
+  const data = await resp.json();
+  if(!data.ok){ dwBody.innerHTML = `<div class="muted">Error: ${esc(data.error||'not found')}</div>`; return; }
+
+  const r = data.item;
+  const qr = r.qrUrl ? `<img class="qr" src="${attr(r.qrUrl)}" alt="QR">` : `<div class="muted">No QR saved</div>`;
+  const link = r.activateUrl ? `<a target="_blank" href="${attr(r.activateUrl)}">${esc(r.activateUrl)}</a>` : `<span class="muted">No link</span>`;
+
+  dwBody.innerHTML = `
+    <div class="field"><div class="label">Code</div><div class="value"><code>${esc(r.code)}</code></div></div>
+    <div class="field"><div class="label">Subscription ID</div><div class="value">${esc(r.subscriptionId)}</div></div>
+    <div class="field"><div class="label">Status</div><div class="value">${badge(r.status)}</div></div>
+    <div class="field"><div class="label">Issued</div><div class="value">${fmt(r.issuedAt)}</div></div>
+    <div class="field"><div class="label">Used</div><div class="value">${fmt(r.usedAt)}</div></div>
+    <div class="field"><div class="label">Email</div><div class="value">${esc(r.customerEmail)}</div></div>
+    <div class="field"><div class="label">Activation link</div><div class="value">${link}</div></div>
+    <div class="field"><div class="label">QR</div><div class="value">${qr}</div></div>
+  `;
 }
-function closeDrawer(){ document.getElementById('drawer').classList.remove('open'); }
-function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function escapeAttr(s){return esc(s).replace(/"/g,'&quot;');}
-loadCodes();
+
+// initial load
+load();
 </script>
 </body>
 </html>
