@@ -5,72 +5,90 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Activation Codes Dashboard</title>
   <style>
-    body { font-family: system-ui, sans-serif; background:#f6f6f7; margin:0; }
-    header { padding:16px; background:#111; color:#fff; }
-    h1 { margin:0; font-size:20px; }
-    .container { padding:20px; max-width:1100px; margin:auto; }
-    .filters { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
-    .filters label { font-size:13px; color:#444; }
-    .filters input, .filters select { padding:4px 6px; font-size:13px; }
-    table { width:100%; border-collapse:collapse; background:#fff; }
-    th,td { padding:8px 10px; border-bottom:1px solid #eee; text-align:left; font-size:14px; }
-    th { background:#fafafa; }
-    tr:hover { background:#f2f2f2; cursor:pointer; }
-    .totals { margin:20px 0; font-size:14px; }
+    :root {
+      --bg: #f9fafb;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --primary: #111827;
+      --primary-hover: #374151;
+      --radius: 12px;
+      --shadow: 0 8px 20px rgba(0,0,0,.05);
+    }
+    body { font-family: 'Inter', system-ui, sans-serif; background:var(--bg); color:var(--text); margin:0; }
+    header { position:sticky; top:0; background:var(--primary); color:#fff; padding:16px 24px; z-index:10; box-shadow:0 2px 6px rgba(0,0,0,.2); }
+    header h1 { margin:0; font-size:20px; font-weight:600; }
+    .container { padding:24px; max-width:1200px; margin:auto; }
+    .card { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; margin-bottom:24px; }
+    .filters { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+    .filters label { font-size:13px; color:var(--muted); display:flex; flex-direction:column; gap:4px; }
+    .filters input,.filters select { padding:6px 8px; border:1px solid #d1d5db; border-radius:8px; font-size:13px; }
+    .filters button { padding:6px 12px; border:none; border-radius:8px; cursor:pointer; background:var(--primary); color:#fff; font-size:13px; }
+    .filters button:hover { background:var(--primary-hover); }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th,td { padding:10px 12px; text-align:left; }
+    th { font-size:13px; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); background:#f3f4f6; }
+    tbody tr:nth-child(odd){ background:#fafafa; }
+    tbody tr:hover { background:#eef2ff; cursor:pointer; }
+    .totals { font-size:14px; margin-bottom:12px; }
     .pagination { margin-top:16px; display:flex; gap:8px; align-items:center; }
-    .pagination button { padding:6px 10px; cursor:pointer; }
-    .drawer { position:fixed; top:0; right:0; width:380px; height:100%; background:#fff; 
-              box-shadow:-3px 0 10px rgba(0,0,0,.2); transform:translateX(100%);
-              transition:transform .3s ease; padding:20px; overflow-y:auto; }
+    .pagination button { padding:6px 12px; border:none; border-radius:8px; cursor:pointer; background:var(--primary); color:#fff; font-size:13px; }
+    .pagination button:disabled { background:#d1d5db; cursor:not-allowed; }
+    .drawer { position:fixed; top:0; right:0; width:420px; height:100%; background:#fff; 
+              box-shadow:-4px 0 12px rgba(0,0,0,.15); transform:translateX(100%);
+              transition:transform .3s ease; padding:28px; overflow-y:auto; }
     .drawer.open { transform:translateX(0); }
-    .drawer h2 { margin-top:0; }
-    .muted { color:#666; font-size:13px; }
-    .qr { max-width:100%; margin:12px 0; }
-    .close { background:none; border:none; font-size:18px; float:right; cursor:pointer; }
+    .drawer h2 { margin-top:0; font-size:18px; font-weight:600; }
+    .muted { color:var(--muted); font-size:13px; }
+    .qr { max-width:100%; margin:16px 0; border:1px solid #e5e7eb; border-radius:var(--radius); }
+    .close { background:none; border:none; font-size:22px; float:right; cursor:pointer; color:var(--muted); }
+    .meta { font-size:13px; margin-top:4px; color:var(--muted); }
   </style>
 </head>
 <body>
   <header><h1>Activation Codes Dashboard</h1></header>
   <div class="container">
 
-    <!-- Filters -->
-    <div class="filters">
-      <label>Search<br><input type="text" id="q" placeholder="Code / Sub / Email"></label>
-      <label>Status<br>
-        <select id="status">
-          <option value="">All</option>
-          <option value="unused">Unused</option>
-          <option value="used">Used</option>
-        </select>
-      </label>
-      <label>Issued From<br><input type="date" id="issuedFrom"></label>
-      <label>Issued To<br><input type="date" id="issuedTo"></label>
-      <label>Used From<br><input type="date" id="usedFrom"></label>
-      <label>Used To<br><input type="date" id="usedTo"></label>
-      <div style="align-self:flex-end">
-        <button onclick="applyFilters()">Apply</button>
-        <button onclick="resetFilters()">Reset</button>
+    <div class="card">
+      <!-- Filters -->
+      <div class="filters">
+        <label>Search<input type="text" id="q" placeholder="Code / Sub / Email"></label>
+        <label>Status
+          <select id="status">
+            <option value="">All</option>
+            <option value="unused">Unused</option>
+            <option value="used">Used</option>
+          </select>
+        </label>
+        <label>Issued From<input type="date" id="issuedFrom"></label>
+        <label>Issued To<input type="date" id="issuedTo"></label>
+        <label>Used From<input type="date" id="usedFrom"></label>
+        <label>Used To<input type="date" id="usedTo"></label>
+        <div style="align-self:flex-end;display:flex;gap:8px">
+          <button onclick="applyFilters()">Apply</button>
+          <button onclick="resetFilters()">Reset</button>
+        </div>
       </div>
-    </div>
 
-    <div class="totals" id="totals"></div>
-    <table id="codes">
-      <thead>
-        <tr>
-          <th>Code</th>
-          <th>Subscription</th>
-          <th>Status</th>
-          <th>Issued</th>
-          <th>Used</th>
-          <th>Email</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-    <div class="pagination">
-      <button id="prevBtn" onclick="prevPage()" disabled>Prev</button>
-      <span id="pageInfo">Page 1</span>
-      <button id="nextBtn" onclick="nextPage()" disabled>Next</button>
+      <div class="totals" id="totals"></div>
+      <table id="codes">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Subscription</th>
+            <th>Status</th>
+            <th>Issued</th>
+            <th>Used</th>
+            <th>Email</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="pagination">
+        <button id="prevBtn" onclick="prevPage()" disabled>← Prev</button>
+        <span id="pageInfo">Page 1</span>
+        <button id="nextBtn" onclick="nextPage()" disabled>Next →</button>
+      </div>
     </div>
   </div>
 
@@ -92,35 +110,19 @@ function getFilters(){
     usedTo: document.getElementById('usedTo').value
   };
 }
-
-function applyFilters(){
-  currentFilters=getFilters();
-  page=1;
-  loadCodes();
-}
-
-function resetFilters(){
-  ['q','status','issuedFrom','issuedTo','usedFrom','usedTo'].forEach(id=>document.getElementById(id).value="");
-  currentFilters={}; page=1;
-  loadCodes();
-}
+function applyFilters(){ currentFilters=getFilters(); page=1; loadCodes(); }
+function resetFilters(){ ['q','status','issuedFrom','issuedTo','usedFrom','usedTo'].forEach(id=>document.getElementById(id).value=""); currentFilters={}; page=1; loadCodes(); }
 
 async function loadCodes(){
   const params=new URLSearchParams();
   for(const [k,v] of Object.entries(currentFilters)){ if(v) params.set(k,v); }
-  params.set('limit', limit);
-  params.set('offset', (page-1)*limit);
-
+  params.set('limit', limit); params.set('offset', (page-1)*limit);
   const resp = await fetch('/api/activations?'+params.toString());
   const data = await resp.json();
-  if(!data.ok){ document.querySelector('#totals').textContent = 'Error loading'; return; }
-
+  if(!data.ok){ document.querySelector('#totals').textContent='Error loading'; return; }
   total=data.totals.total;
-  document.querySelector('#totals').textContent =
-    `Total: ${data.totals.total} | Used: ${data.totals.used} | Unused: ${data.totals.unused}`;
-
-  const tbody = document.querySelector('#codes tbody');
-  tbody.innerHTML='';
+  document.querySelector('#totals').textContent=`Total: ${data.totals.total} | Used: ${data.totals.used} | Unused: ${data.totals.unused}`;
+  const tbody=document.querySelector('#codes tbody'); tbody.innerHTML='';
   for(const r of data.items){
     const tr=document.createElement('tr');
     tr.innerHTML=`
@@ -133,35 +135,21 @@ async function loadCodes(){
     tr.onclick=()=>openDetail(r.code);
     tbody.appendChild(tr);
   }
-
-  // update pagination controls
-  document.getElementById('pageInfo').textContent = `Page ${page}`;
-  document.getElementById('prevBtn').disabled = (page<=1);
-  document.getElementById('nextBtn').disabled = (page*limit >= total);
+  document.getElementById('pageInfo').textContent=`Page ${page} of ${data.meta.totalPages}`;
+  document.getElementById('prevBtn').disabled=(page<=1);
+  document.getElementById('nextBtn').disabled=(page>=data.meta.totalPages);
 }
-
 function nextPage(){ page++; loadCodes(); }
 function prevPage(){ if(page>1){ page--; loadCodes(); } }
 
 async function openDetail(code){
-  const drawer=document.getElementById('drawer');
-  const content=document.getElementById('drawerContent');
-  drawer.classList.add('open');
-  content.innerHTML='Loading…';
-
-  const resp=await fetch('/api/activations/'+encodeURIComponent(code));
-  const data=await resp.json();
+  const drawer=document.getElementById('drawer'), content=document.getElementById('drawerContent');
+  drawer.classList.add('open'); content.innerHTML='Loading…';
+  const resp=await fetch('/api/activations/'+encodeURIComponent(code)); const data=await resp.json();
   if(!data.ok){ content.textContent='Error: '+data.error; return; }
   const r=data.item;
-
-  const qrImg = r.qrUrl
-    ? `<img class="qr" src="${escapeAttr(r.qrUrl)}" alt="QR" />`
-    : '<div class="muted">No QR saved</div>';
-
-  const actLink = r.activateUrl
-    ? `<a target="_blank" href="${escapeAttr(r.activateUrl)}">${esc(r.activateUrl)}</a>`
-    : '<span class="muted">No link</span>';
-
+  const qrImg=r.qrUrl? `<img class="qr" src="${escapeAttr(r.qrUrl)}" alt="QR" />` : '<div class="muted">No QR saved</div>';
+  const actLink=r.activateUrl? `<a target="_blank" href="${escapeAttr(r.activateUrl)}">${esc(r.activateUrl)}</a>` : '<span class="muted">No link</span>';
   content.innerHTML=`
     <h2>Code ${esc(r.code)}</h2>
     <p><b>Status:</b> ${esc(r.status)}</p>
@@ -171,13 +159,11 @@ async function openDetail(code){
     <p><b>Used:</b> ${r.usedAt? new Date(r.usedAt).toLocaleString():''}</p>
     <p><b>Activation Link:</b> ${actLink}</p>
     ${qrImg}
-  `;
+    <div class="meta">Ref: ${esc(r.code)}</div>`;
 }
-
 function closeDrawer(){ document.getElementById('drawer').classList.remove('open'); }
 function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function escapeAttr(s){return esc(s).replace(/"/g,'&quot;');}
-
 loadCodes();
 </script>
 </body>
