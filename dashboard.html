@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Activation Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --bg:#f7f7f8; --card:#fff; --txt:#111; --muted:#666; --bd:#e9e9ec; }
+    body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif; background:var(--bg); color:var(--txt); }
+    .wrap { max-width:1200px; margin:24px auto 48px; padding:0 16px; }
+    h1 { font-size:20px; margin:12px 0 16px; font-weight:600; }
+    .kpis { display:grid; grid-template-columns: repeat(3, minmax(160px,1fr)); gap:12px; margin:12px 0 16px; }
+    .card { background:var(--card); border:1px solid var(--bd); border-radius:14px; padding:14px 16px; }
+    .k h3 { margin:0; font-size:12px; color:var(--muted); letter-spacing:.3px; text-transform:uppercase; }
+    .k .num { font-size:24px; margin-top:4px; font-weight:700; }
+    .filters { display:grid; grid-template-columns: repeat(6, minmax(160px,1fr)); gap:10px; align-items:end; margin:10px 0 12px; }
+    .input, select { border:1px solid var(--bd); border-radius:10px; padding:10px 12px; background:#fff; min-width:160px; }
+    .btn { background:#111; color:#fff; border:0; padding:10px 14px; border-radius:10px; cursor:pointer; }
+    .btn.light { background:#eee; color:#111; }
+    table { width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--bd); border-radius:14px; overflow:hidden; }
+    thead th { text-align:left; font-size:12px; color:var(--muted); padding:10px 12px; background:#fafafb; border-bottom:1px solid var(--bd); }
+    tbody td { padding:12px; border-top:1px solid var(--bd); font-size:14px; }
+    tbody tr { cursor:pointer; }
+    tbody tr:hover { background:#fcfcfd; }
+    .badge { display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; }
+    .used { background:#eaf7ee; color:#117a36; }
+    .unused { background:#fff3da; color:#8f5a00; }
+    .muted { color:var(--muted); }
+    .empty { padding:28px; text-align:center; color:var(--muted); }
+    .topbar { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .small { font-size:12px; color:var(--muted); }
+    /* Drawer */
+    .drawer { position:fixed; top:0; right:0; width:420px; max-width:100%; height:100%; background:#fff; box-shadow:-12px 0 32px rgba(0,0,0,.12); transform:translateX(100%); transition:.25s; z-index:9999; display:flex; flex-direction:column; }
+    .drawer.open { transform:translateX(0); }
+    .dw-head { padding:16px; border-bottom:1px solid var(--bd); display:flex; justify-content:space-between; align-items:center; }
+    .dw-body { padding:16px; overflow:auto; }
+    .xbtn { background:#eee; border:1px solid var(--bd); border-radius:10px; padding:8px 10px; cursor:pointer; }
+    .copy { background:#111; color:#fff; border:0; padding:8px 10px; border-radius:8px; cursor:pointer; }
+    .grid { display:grid; grid-template-columns: 1fr; gap:10px; }
+    .label { font-size:12px; color:#666; }
+    .val { font-size:14px; }
+    .qr { border:1px solid var(--bd); padding:8px; border-radius:8px; max-width:240px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <h1>Activation Dashboard</h1>
+      <div class="small" id="meta"></div>
+    </div>
+
+    <div class="kpis">
+      <div class="card k"><h3>Total</h3><div class="num" id="kTotal">–</div></div>
+      <div class="card k"><h3>Used</h3><div class="num" id="kUsed">–</div></div>
+      <div class="card k"><h3>Unused</h3><div class="num" id="kUnused">–</div></div>
+    </div>
+
+    <div class="card">
+      <div class="filters">
+        <input id="q" class="input" type="search" placeholder="Search code / email / subscriptionId" />
+        <select id="status">
+          <option value="">All statuses</option>
+          <option value="unused">Unused</option>
+          <option value="used">Used</option>
+        </select>
+        <div>
+          <div class="label">Issued from</div>
+          <input id="issuedFrom" class="input" type="date" />
+        </div>
+        <div>
+          <div class="label">Issued to</div>
+          <input id="issuedTo" class="input" type="date" />
+        </div>
+        <div>
+          <div class="label">Used from</div>
+          <input id="usedFrom" class="input" type="date" />
+        </div>
+        <div>
+          <div class="label">Used to</div>
+          <input id="usedTo" class="input" type="date" />
+        </div>
+      </div>
+
+      <div class="filters" style="grid-template-columns: auto auto; gap:8px;">
+        <button class="btn" id="apply">Apply</button>
+        <button class="btn light" id="clear">Clear</button>
+      </div>
+
+      <div id="tableWrap"></div>
+    </div>
+  </div>
+
+  <!-- Drawer for details -->
+  <div id="drawer" class="drawer" aria-hidden="true">
+    <div class="dw-head">
+      <strong>Details</strong>
+      <button class="xbtn" id="xbtn">Close</button>
+    </div>
+    <div class="dw-body">
+      <div class="grid" id="dwContent"></div>
+    </div>
+  </div>
+
+  <script>
+    const el = (id) => document.getElementById(id);
+    const kTotal = el('kTotal'), kUsed = el('kUsed'), kUnused = el('kUnused'), meta = el('meta');
+    const qEl = el('q'), statusEl = el('status'), applyBtn = el('apply'), clearBtn = el('clear');
+    const issuedFromEl = el('issuedFrom'), issuedToEl = el('issuedTo'), usedFromEl = el('usedFrom'), usedToEl = el('usedTo');
+    const tableWrap = el('tableWrap');
+    const drawer = el('drawer'), xbtn = el('xbtn'), dwContent = el('dwContent');
+
+    function params() {
+      const p = new URLSearchParams();
+      if (qEl.value.trim()) p.set('q', qEl.value.trim());
+      if (statusEl.value) p.set('status', statusEl.value);
+      if (issuedFromEl.value) p.set('issuedFrom', issuedFromEl.value);
+      if (issuedToEl.value) p.set('issuedTo', issuedToEl.value);
+      if (usedFromEl.value) p.set('usedFrom', usedFromEl.value);
+      if (usedToEl.value) p.set('usedTo', usedToEl.value);
+      p.set('limit', '1000');
+      return p;
+    }
+
+    async function fetchData() {
+      const p = params();
+      const resp = await fetch('/api/activations?' + p.toString(), { cache: 'no-store' });
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error || 'Load error');
+      return data;
+    }
+
+    function fmtDate(d) {
+      if (!d) return '';
+      if (typeof d === 'number') { // Google serial support
+        const epoch = new Date(Date.UTC(1899, 11, 30));
+        const ms = epoch.getTime() + d * 86400000;
+        return new Date(ms).toLocaleString();
+      }
+      const t = new Date(d);
+      return isNaN(t) ? '' : t.toLocaleString();
+    }
+
+    function renderTable(items) {
+      if (!items.length) {
+        tableWrap.innerHTML = '<div class="empty">No records found.</div>';
+        return;
+      }
+      const rows = items.map(r => `
+        <tr data-code="${esc(r.code)}">
+          <td><code>${esc(r.code)}</code></td>
+          <td>${esc(r.subscriptionId)}</td>
+          <td>${badge(r.status)}</td>
+          <td class="muted">${fmtDate(r.issuedAt)}</td>
+          <td class="muted">${fmtDate(r.usedAt)}</td>
+          <td>${esc(r.customerEmail)}</td>
+        </tr>
+      `).join('');
+
+      tableWrap.innerHTML = `
+        <table id="tbl">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Subscription ID</th>
+              <th>Status</th>
+              <th>Issued</th>
+              <th>Used</th>
+              <th>Email</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+
+      // row click → detail drawer
+      const tbody = tableWrap.querySelector('tbody');
+      tbody.addEventListener('click', async (e) => {
+        const tr = e.target.closest('tr');
+        if (!tr) return;
+        const code = tr.getAttribute('data-code');
+        openDetail(code);
+      });
+    }
+
+    function badge(status) {
+      const cls = status === 'used' ? 'used' : 'unused';
+      const txt = status === 'used' ? 'Used' : 'Unused';
+      return `<span class="badge ${cls}">${txt}</span>`;
+    }
+
+    function esc(s) {
+      return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    async function load() {
+      try {
+        tableWrap.innerHTML = '<div class="empty">Loading…</div>';
+        const data = await fetchData();
+        kTotal.textContent = data.totals.total;
+        kUsed.textContent  = data.totals.used;
+        kUnused.textContent= data.totals.unused;
+        meta.textContent   = `Showing ${data.meta.returned} of ${data.totals.total}`;
+        renderTable(data.items);
+      } catch (e) {
+        tableWrap.innerHTML = `<div class="empty">Error: ${esc(e.message)}</div>`;
+      }
+    }
+
+    async function openDetail(code) {
+      dwContent.innerHTML = '<div class="muted">Loading…</div>';
+      drawer.classList.add('open');
+      const resp = await fetch('/api/activations/' + encodeURIComponent(code));
+      const data = await resp.json();
+      if (!data.ok) { dwContent.innerHTML = '<div class="muted">Not found</div>'; return; }
+      const r = data.item;
+
+      const qrImg = r.qrUrl ? `<img class="qr" src="${esc(r.qrUrl)}" alt="QR" />` : '<div class="muted">No QR saved</div>';
+      const actLink = r.activateUrl ? `<a target="_blank" href="${esc(r.activateUrl)}">${esc(r.activateUrl)}</a>` : '<span class="muted">No link</span>';
+
+      dwContent.innerHTML = `
+        <div class="grid">
+          <div>
+            <div class="label">Code</div>
+            <div class="val"><code>${esc(r.code)}</code> <button class="copy" data-copy="${esc(r.code)}">Copy</button></div>
+          </div>
+          <div>
+            <div class="label">Subscription ID</div>
+            <div class="val">${esc(r.subscriptionId)}</div>
+          </div>
+          <div>
+            <div class="label">Status</div>
+            <div class="val">${badge(r.status)}</div>
+          </div>
+          <div>
+            <div class="label">Issued</div>
+            <div class="val">${fmtDate(r.issuedAt)}</div>
+          </div>
+          <div>
+            <div class="label">Used</div>
+            <div class="val">${fmtDate(r.usedAt)}</div>
+          </div>
+          <div>
+            <div class="label">Email</div>
+            <div class="val">${esc(r.customerEmail)}</div>
+          </div>
+          <div>
+            <div class="label">Activation link</div>
+            <div class="val">${actLink} ${r.activateUrl ? `<button class="copy" data-copy="${esc(r.activateUrl)}">Copy</button>` : ''}</div>
+          </div>
+          <div>
+            <div class="label">QR</div>
+            <div class="val">${qrImg}</div>
+          </div>
+        </div>
+      `;
+
+      // copy buttons
+      dwContent.querySelectorAll('.copy').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(btn.getAttribute('data-copy'));
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = 'Copy', 1000);
+          } catch {}
+        });
+      });
+    }
+
+    xbtn.addEventListener('click', () => drawer.classList.remove('open'));
+    applyBtn.addEventListener('click', load);
+    clearBtn.addEventListener('click', () => {
+      qEl.value=''; statusEl.value='';
+      issuedFromEl.value=''; issuedToEl.value='';
+      usedFromEl.value=''; usedToEl.value='';
+      load();
+    });
+
+    load();
+  </script>
+</body>
+</html>
