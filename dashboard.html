@@ -1,521 +1,206 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Activation Dashboard</title>
-    <style>
-      :root {
-        --bg: #f6f7f8;
-        --card: #fff;
-        --ink: #111;
-        --muted: #666;
-        --bd: #e7e7ea;
-        --pill-used: #eaf7ee;
-        --pill-used-text: #117a36;
-        --pill-unused: #fff3da;
-        --pill-unused-text: #8f5a00;
-        --radius: 14px;
-        --shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
-        --accent: #111;
-        --accent-hover: #1f1f1f;
-        --soft: #f9f9fb;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu,
-          sans-serif;
-        background: var(--bg);
-        color: var(--ink);
-      }
-      .wrap {
-        max-width: 1160px;
-        margin: 18px auto 40px;
-        padding: 0 16px;
-      }
-      h1 {
-        font-size: 22px;
-        font-weight: 700;
-        margin: 6px 0 18px;
-      }
-      .meta {
-        float: right;
-        color: var(--muted);
-        font-size: 12px;
-      }
-      /* KPI cards */
-      .kpis {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(200px, 1fr));
-        gap: 16px;
-        margin-bottom: 16px;
-      }
-      .k {
-        background: var(--card);
-        border: 1px solid var(--bd);
-        border-radius: 16px;
-        padding: 18px 20px;
-        box-shadow: var(--shadow);
-      }
-      .k h3 {
-        margin: 0 0 6px;
-        font-size: 11px;
-        letter-spacing: 0.3px;
-        text-transform: uppercase;
-        color: var(--muted);
-      }
-      .k .num {
-        font-size: 26px;
-        font-weight: 800;
-      }
-      /* Filters block */
-      .block {
-        background: var(--card);
-        border: 1px solid var(--bd);
-        border-radius: 16px;
-        box-shadow: var(--shadow);
-        padding: 14px;
-      }
-      .filters {
-        display: grid;
-        grid-template-columns: 1.5fr 1fr repeat(4, 1fr);
-        gap: 10px;
-        align-items: end;
-      }
-      label {
-        font-size: 12px;
-        color: var(--muted);
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-      .inp,
-      .sel {
-        border: 1px solid var(--bd);
-        border-radius: 12px;
-        padding: 10px 12px;
-        background: #fff;
-        font-size: 14px;
-      }
-      .btn {
-        border: 0;
-        border-radius: 12px;
-        padding: 12px 14px;
-        font-weight: 600;
-        cursor: pointer;
-      }
-      .btn.apply {
-        background: var(--accent);
-        color: #fff;
-      }
-      .btn.apply:hover {
-        background: var(--accent-hover);
-      }
-      .btn.clear {
-        background: #efefef;
-        color: #111;
-      }
-      .buttons {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 14px;
-        margin-top: 6px;
-      }
-      /* Table */
-      table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0 10px;
-        margin-top: 10px;
-      }
-      thead th {
-        font-size: 12px;
-        color: var(--muted);
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
-        padding: 0 12px;
-      }
-      tbody tr {
-        background: #fff;
-        border: 1px solid var(--bd);
-        border-radius: 12px;
-        box-shadow: var(--shadow);
-      }
-      tbody td {
-        padding: 12px;
-      }
-      tbody tr:hover {
-        transform: translateY(-1px);
-        transition: 0.15s;
-        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.07);
-      }
-      .pill {
-        display: inline-block;
-        padding: 6px 10px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 600;
-      }
-      .used {
-        background: var(--pill-used);
-        color: var(--pill-used-text);
-      }
-      .unused {
-        background: var(--pill-unused);
-        color: var(--pill-unused-text);
-      }
-      .muted {
-        color: var(--muted);
-      }
-      /* Pagination */
-      .pager {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        justify-content: flex-end;
-        margin: 8px 2px 0;
-      }
-      .pager button {
-        border: 1px solid var(--bd);
-        background: #fff;
-        border-radius: 10px;
-        padding: 8px 12px;
-        cursor: pointer;
-      }
-      .pager button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-      /* Drawer */
-      .drawer {
-        position: fixed;
-        top: 0;
-        right: 0;
-        width: 430px;
-        max-width: 100%;
-        height: 100%;
-        background: #fff;
-        box-shadow: -16px 0 36px rgba(0, 0, 0, 0.18);
-        transform: translateX(105%);
-        transition: transform 0.28s ease;
-        z-index: 50;
-      }
-      .drawer.open {
-        transform: translateX(0);
-      }
-      .dw-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 16px 18px;
-        border-bottom: 1px solid var(--bd);
-      }
-      .dw-body {
-        padding: 16px 18px;
-        overflow: auto;
-        height: calc(100% - 58px);
-      }
-      .x {
-        border: 1px solid var(--bd);
-        background: #f4f4f5;
-        border-radius: 10px;
-        padding: 8px 10px;
-        cursor: pointer;
-      }
-      .qr {
-        display: block;
-        border: 1px solid var(--bd);
-        border-radius: 10px;
-        padding: 8px;
-        max-width: 260px;
-        background: var(--soft);
-      }
-      .field {
-        margin: 10px 0;
-      }
-      .label {
-        font-size: 12px;
-        color: var(--muted);
-      }
-      .value {
-        font-size: 14px;
-      }
-      code {
-        background: #f2f2f3;
-        padding: 2px 6px;
-        border-radius: 6px;
-      }
-      .icon-btn {
-        border: 1px solid var(--bd);
-        background: #fff;
-        border-radius: 50%;
-        width: 34px;
-        height: 34px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 16px;
-        cursor: pointer;
-        transition: background 0.2s ease, transform 0.2s ease;
-      }
-      .icon-btn:hover {
-        background: #f2f2f2;
-        transform: rotate(-20deg);
-      }
-      .icon-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="wrap">
-      <div
-        style="
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 12px;
-        "
-      >
-        <h1>Activation Dashboard</h1>
-        <div style="display: flex; align-items: center; gap: 10px">
-          <div class="meta" id="meta">Showing 0 of 0</div>
-          <button id="refreshBtn" class="icon-btn" title="Refresh">⟳</button>
-        </div>
-      </div>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Activation Dashboard</title>
+  <style>
+    :root{
+      --bg:#f6f7f8; --card:#fff; --ink:#111; --muted:#666; --bd:#e7e7ea;
+      --pill-used:#eaf7ee; --pill-used-text:#117a36;
+      --pill-unused:#fff3da; --pill-unused-text:#8f5a00;
+      --radius:14px; --shadow:0 8px 30px rgba(0,0,0,.06);
+      --accent:#111; --accent-hover:#1f1f1f; --soft:#f9f9fb;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,sans-serif;background:var(--bg);color:var(--ink)}
+    .wrap{max-width:1160px;margin:18px auto 40px;padding:0 16px}
+    h1{font-size:22px;font-weight:700;margin:6px 0 18px}
+    .meta{float:right;color:var(--muted);font-size:12px}
+    /* KPI cards */
+    .kpis{display:grid;grid-template-columns:repeat(3,minmax(200px,1fr));gap:16px;margin-bottom:16px}
+    .k{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:18px 20px;box-shadow:var(--shadow)}
+    .k h3{margin:0 0 6px;font-size:11px;letter-spacing:.3px;text-transform:uppercase;color:var(--muted)}
+    .k .num{font-size:26px;font-weight:800}
+    /* Filters block */
+    .block{background:var(--card);border:1px solid var(--bd);border-radius:16px;box-shadow:var(--shadow);padding:14px}
+    .filters{display:grid;grid-template-columns:1.5fr 1fr repeat(4,1fr);gap:10px;align-items:end}
+    label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+    .inp,.sel{border:1px solid var(--bd);border-radius:12px;padding:10px 12px;background:#fff;font-size:14px}
+    .btn{border:0;border-radius:12px;padding:12px 14px;font-weight:600;cursor:pointer}
+    .btn.apply{background:var(--accent);color:#fff}
+    .btn.apply:hover{background:var(--accent-hover)}
+    .btn.clear{background:#efefef;color:#111}
+    .buttons{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}
+    /* Table */
+    table{width:100%;border-collapse:separate;border-spacing:0 10px;margin-top:10px}
+    thead th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;padding:0 12px}
+    tbody tr{background:#fff;border:1px solid var(--bd);border-radius:12px;box-shadow:var(--shadow)}
+    tbody td{padding:12px}
+    tbody tr:hover{transform:translateY(-1px);transition:.15s;box-shadow:0 10px 28px rgba(0,0,0,.07)}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:600}
+    .used{background:var(--pill-used);color:var(--pill-used-text)}
+    .unused{background:var(--pill-unused);color:var(--pill-unused-text)}
+    .muted{color:var(--muted)}
+    /* Pagination */
+    .pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin:8px 2px 0}
+    .pager button{border:1px solid var(--bd);background:#fff;border-radius:10px;padding:8px 12px;cursor:pointer}
+    .pager button:disabled{opacity:.5;cursor:not-allowed}
+    /* Drawer */
+    .drawer{position:fixed;top:0;right:0;width:430px;max-width:100%;height:100%;background:#fff;box-shadow:-16px 0 36px rgba(0,0,0,.18);transform:translateX(105%);transition:transform .28s ease;z-index:50}
+    .drawer.open{transform:translateX(0)}
+    .dw-head{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid var(--bd)}
+    .dw-body{padding:16px 18px;overflow:auto;height:calc(100% - 58px)}
+    .x{border:1px solid var(--bd);background:#f4f4f5;border-radius:10px;padding:8px 10px;cursor:pointer}
+    .qr{display:block;border:1px solid var(--bd);border-radius:10px;padding:8px;max-width:260px;background:var(--soft)}
+    .field{margin:10px 0}
+    .label{font-size:12px;color:var(--muted)}
+    .value{font-size:14px}
+    code{background:#f2f2f3;padding:2px 6px;border-radius:6px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+  <h1>Activation Dashboard</h1>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="meta" id="meta">Showing 0 of 0</div>
+    <button id="refreshBtn" class="btn apply" style="padding:8px 12px;border-radius:10px;">Refresh</button>
+  </div>
+</div>
 
-      <div class="kpis">
-        <div class="k">
-          <h3>Total</h3>
-          <div class="num" id="kTotal">–</div>
-        </div>
-        <div class="k">
-          <h3>Used</h3>
-          <div class="num" id="kUsed">–</div>
-        </div>
-        <div class="k">
-          <h3>Unused</h3>
-          <div class="num" id="kUnused">–</div>
-        </div>
-      </div>
 
-      <div class="block">
-        <div class="filters">
-          <label>
-            <span>Search code / email / subscription</span>
-            <input
-              id="q"
-              class="inp"
-              type="search"
-              placeholder="e.g. ABC123 / 7103491 / jane@store.com"
-            />
-          </label>
-          <label>
-            <span>Status</span>
-            <select id="status" class="sel">
-              <option value="">All statuses</option>
-              <option value="unused">Unused</option>
-              <option value="used">Used</option>
-            </select>
-          </label>
-          <label
-            ><span>Issued from</span
-            ><input id="issuedFrom" class="inp" type="date"
-          /></label>
-          <label
-            ><span>Issued to</span><input id="issuedTo" class="inp" type="date"
-          /></label>
-          <label
-            ><span>Used from</span><input id="usedFrom" class="inp" type="date"
-          /></label>
-          <label
-            ><span>Used to</span><input id="usedTo" class="inp" type="date"
-          /></label>
-        </div>
-
-        <div class="buttons">
-          <button class="btn apply" id="apply">Apply</button>
-          <button class="btn clear" id="clear">Clear</button>
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>Subscription ID</th>
-              <th>Status</th>
-              <th>Issued</th>
-              <th>Used</th>
-              <th>Email</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
-
-        <div class="pager">
-          <button id="prev" disabled>◀ Prev</button>
-          <div id="pageInfo" class="muted">Page 1</div>
-          <button id="next" disabled>Next ▶</button>
-        </div>
-      </div>
+    <div class="kpis">
+      <div class="k"><h3>Total</h3><div class="num" id="kTotal">–</div></div>
+      <div class="k"><h3>Used</h3><div class="num" id="kUsed">–</div></div>
+      <div class="k"><h3>Unused</h3><div class="num" id="kUnused">–</div></div>
     </div>
 
-    <!-- Drawer -->
-    <div id="drawer" class="drawer" aria-hidden="true">
-      <div class="dw-head">
-        <strong>Details</strong>
-        <button class="x" id="xbtn">Close</button>
+    <div class="block">
+      <div class="filters">
+        <label>
+          <span>Search code / email / subscription</span>
+          <input id="q" class="inp" type="search" placeholder="e.g. ABC123 / 7103491 / jane@store.com">
+        </label>
+        <label>
+          <span>Status</span>
+          <select id="status" class="sel">
+            <option value="">All statuses</option>
+            <option value="unused">Unused</option>
+            <option value="used">Used</option>
+          </select>
+        </label>
+        <label><span>Issued from</span><input id="issuedFrom" class="inp" type="date"></label>
+        <label><span>Issued to</span><input id="issuedTo" class="inp" type="date"></label>
+        <label><span>Used from</span><input id="usedFrom" class="inp" type="date"></label>
+        <label><span>Used to</span><input id="usedTo" class="inp" type="date"></label>
       </div>
-      <div class="dw-body" id="dwBody">
-        <div class="muted">Select a row…</div>
+
+      <div class="buttons">
+        <button class="btn apply" id="apply">Apply</button>
+        <button class="btn clear" id="clear">Clear</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Subscription ID</th>
+            <th>Status</th>
+            <th>Issued</th>
+            <th>Used</th>
+            <th>Email</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+
+      <div class="pager">
+        <button id="prev" disabled>◀ Prev</button>
+        <div id="pageInfo" class="muted">Page 1</div>
+        <button id="next" disabled>Next ▶</button>
       </div>
     </div>
+  </div>
 
-    <script>
-      const kTotal = byId("kTotal"),
-        kUsed = byId("kUsed"),
-        kUnused = byId("kUnused"),
-        meta = byId("meta");
-      const tbody = byId("tbody"),
-        drawer = byId("drawer"),
-        dwBody = byId("dwBody");
-      const pageInfo = byId("pageInfo"),
-        prevBtn = byId("prev"),
-        nextBtn = byId("next"),
-        applyBtn = byId("apply"),
-        clearBtn = byId("clear");
-      let filters = {},
-        page = 1,
-        limit = 20,
-        total = 0,
-        totalPages = 1;
+  <!-- Drawer -->
+  <div id="drawer" class="drawer" aria-hidden="true">
+    <div class="dw-head">
+      <strong>Details</strong>
+      <button class="x" id="xbtn">Close</button>
+    </div>
+    <div class="dw-body" id="dwBody">
+      <div class="muted">Select a row…</div>
+    </div>
+  </div>
 
-      applyBtn.addEventListener("click", () => {
-        filters = readFilters();
-        page = 1;
-        load();
-      });
-      clearBtn.addEventListener("click", () => {
-        resetFilters();
-        page = 1;
-        load();
-      });
-      prevBtn.addEventListener("click", () => {
-        if (page > 1) {
-          page--;
-          load();
-        }
-      });
-      nextBtn.addEventListener("click", () => {
-        if (page < totalPages) {
-          page++;
-          load();
-        }
-      });
-      byId("xbtn").addEventListener("click", () =>
-        drawer.classList.remove("open")
-      );
+<script>
+const kTotal = byId('kTotal'), kUsed = byId('kUsed'), kUnused = byId('kUnused'), meta = byId('meta');
+const tbody = byId('tbody'), drawer = byId('drawer'), dwBody = byId('dwBody');
+const pageInfo = byId('pageInfo'), prevBtn = byId('prev'), nextBtn = byId('next'), applyBtn = byId('apply'), clearBtn = byId('clear');
+let filters = {}, page = 1, limit = 20, total = 0, totalPages = 1;
 
-      function byId(id) {
-        return document.getElementById(id);
-      }
-      function esc(s) {
-        return String(s || "").replace(
-          /[&<>"']/g,
-          (c) =>
-            ({
-              "&": "&amp;",
-              "<": "&lt;",
-              ">": "&gt;",
-              '"': "&quot;",
-              "'": "&#39;",
-            }[c])
-        );
-      }
-      function attr(s) {
-        return esc(s).replace(/"/g, "&quot;");
-      }
-      function fmt(d) {
-        if (!d) return "";
-        const t = new Date(d);
-        return isNaN(t) ? "" : t.toLocaleString();
-      }
-      function badge(status) {
-        const cls = status === "used" ? "used" : "unused";
-        const txt = status === "used" ? "Used" : "Unused";
-        return `<span class="pill ${cls}">${txt}</span>`;
-      }
+applyBtn.addEventListener('click', () => { filters = readFilters(); page = 1; load(); });
+clearBtn.addEventListener('click', () => { resetFilters(); page = 1; load(); });
+prevBtn.addEventListener('click', () => { if(page>1){ page--; load(); }});
+nextBtn.addEventListener('click', () => { if(page<totalPages){ page++; load(); }});
+byId('xbtn').addEventListener('click', () => drawer.classList.remove('open'));
 
-      function readFilters() {
-        return {
-          q: byId("q").value.trim(),
-          status: byId("status").value,
-          issuedFrom: byId("issuedFrom").value,
-          issuedTo: byId("issuedTo").value,
-          usedFrom: byId("usedFrom").value,
-          usedTo: byId("usedTo").value,
-        };
-      }
-      function resetFilters() {
-        ["q", "status", "issuedFrom", "issuedTo", "usedFrom", "usedTo"].forEach(
-          (id) => (byId(id).value = "")
-        );
-        filters = {};
-      }
+function byId(id){ return document.getElementById(id); }
+function esc(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function attr(s){ return esc(s).replace(/"/g,'&quot;'); }
+function fmt(d){ if(!d) return ''; const t=new Date(d); return isNaN(t)?'':t.toLocaleString(); }
+function badge(status){ const cls = status==='used'?'used':'unused'; const txt = status==='used'?'Used':'Unused'; return `<span class="pill ${cls}">${txt}</span>`; }
 
-      async function load() {
-        tbody.innerHTML = `<tr><td class="muted" colspan="6" style="padding:16px">Loading…</td></tr>`;
+function readFilters(){
+  return {
+    q: byId('q').value.trim(),
+    status: byId('status').value,
+    issuedFrom: byId('issuedFrom').value,
+    issuedTo: byId('issuedTo').value,
+    usedFrom: byId('usedFrom').value,
+    usedTo: byId('usedTo').value
+  };
+}
+function resetFilters(){ ['q','status','issuedFrom','issuedTo','usedFrom','usedTo'].forEach(id=>byId(id).value=""); filters={}; }
 
-        const p = new URLSearchParams();
-        Object.entries(filters).forEach(([k, v]) => {
-          if (v) p.set(k, v);
-        });
-        p.set("limit", String(limit));
-        p.set("offset", String((page - 1) * limit));
+async function load(){
+  tbody.innerHTML = `<tr><td class="muted" colspan="6" style="padding:16px">Loading…</td></tr>`;
 
-        const resp = await fetch("/api/activations?" + p.toString(), {
-          cache: "no-store",
-        });
-        const data = await resp.json();
+  const p = new URLSearchParams();
+  Object.entries(filters).forEach(([k,v]) => { if(v) p.set(k,v); });
+  p.set('limit', String(limit));
+  p.set('offset', String((page-1)*limit));
 
-        if (!data.ok) {
-          tbody.innerHTML = `<tr><td class="muted" colspan="6" style="padding:16px">Error: ${esc(
-            data.error || "load"
-          )}</td></tr>`;
-          return;
-        }
+  const resp = await fetch('/api/activations?'+p.toString(), { cache:'no-store' });
+  const data = await resp.json();
 
-        total = data.totals.total;
-        totalPages = Math.max(
-          data.meta.totalPages || Math.ceil(total / limit),
-          1
-        );
+  if(!data.ok){
+    tbody.innerHTML = `<tr><td class="muted" colspan="6" style="padding:16px">Error: ${esc(data.error||'load')}</td></tr>`;
+    return;
+  }
 
-        kTotal.textContent = data.totals.total;
-        kUsed.textContent = data.totals.used;
-        kUnused.textContent = data.totals.unused;
-        meta.textContent = `Showing ${Math.min(
-          data.meta.returned,
-          total
-        )} of ${total}`;
+  total = data.totals.total;
+  totalPages = Math.max(data.meta.totalPages || Math.ceil(total/limit), 1);
 
-        pageInfo.textContent = `Page ${page} of ${totalPages}`;
-        prevBtn.disabled = page <= 1;
-        nextBtn.disabled = page >= totalPages;
+  kTotal.textContent = data.totals.total;
+  kUsed.textContent  = data.totals.used;
+  kUnused.textContent= data.totals.unused;
+  meta.textContent   = `Showing ${Math.min(data.meta.returned, total)} of ${total}`;
 
-        tbody.innerHTML = "";
-        if (!data.items.length) {
-          tbody.innerHTML = `<tr><td class="muted" colspan="6" style="padding:16px">No records found.</td></tr>`;
-          return;
-        }
+  pageInfo.textContent = `Page ${page} of ${totalPages}`;
+  prevBtn.disabled = page<=1;
+  nextBtn.disabled = page>=totalPages;
 
-        for (const r of data.items) {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
+  tbody.innerHTML = '';
+  if(!data.items.length){
+    tbody.innerHTML = `<tr><td class="muted" colspan="6" style="padding:16px">No records found.</td></tr>`;
+    return;
+  }
+
+  for(const r of data.items){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
       <td><code>${esc(r.code)}</code></td>
       <td>${esc(r.subscriptionId)}</td>
       <td>${badge(r.status)}</td>
@@ -523,75 +208,52 @@
       <td class="muted">${fmt(r.usedAt)}</td>
       <td>${esc(r.customerEmail)}</td>
     `;
-          tr.addEventListener("click", () => openDetail(r.code));
-          tbody.appendChild(tr);
-        }
-      }
+    tr.addEventListener('click', () => openDetail(r.code));
+    tbody.appendChild(tr);
+  }
+}
 
-      async function openDetail(code) {
-        dwBody.innerHTML = '<div class="muted">Loading…</div>';
-        drawer.classList.add("open");
+async function openDetail(code){
+  dwBody.innerHTML = '<div class="muted">Loading…</div>';
+  drawer.classList.add('open');
 
-        const resp = await fetch(
-          "/api/activations/" + encodeURIComponent(code)
-        );
-        const data = await resp.json();
-        if (!data.ok) {
-          dwBody.innerHTML = `<div class="muted">Error: ${esc(
-            data.error || "not found"
-          )}</div>`;
-          return;
-        }
+  const resp = await fetch('/api/activations/'+encodeURIComponent(code));
+  const data = await resp.json();
+  if(!data.ok){ dwBody.innerHTML = `<div class="muted">Error: ${esc(data.error||'not found')}</div>`; return; }
 
-        const r = data.item;
-        const qr = r.qrUrl
-          ? `<img class="qr" src="${attr(r.qrUrl)}" alt="QR">`
-          : `<div class="muted">No QR saved</div>`;
-        const link = r.activateUrl
-          ? `<a target="_blank" href="${attr(r.activateUrl)}">${esc(
-              r.activateUrl
-            )}</a>`
-          : `<span class="muted">No link</span>`;
+  const r = data.item;
+  const qr = r.qrUrl ? `<img class="qr" src="${attr(r.qrUrl)}" alt="QR">` : `<div class="muted">No QR saved</div>`;
+  const link = r.activateUrl ? `<a target="_blank" href="${attr(r.activateUrl)}">${esc(r.activateUrl)}</a>` : `<span class="muted">No link</span>`;
 
-        dwBody.innerHTML = `
-    <div class="field"><div class="label">Code</div><div class="value"><code>${esc(
-      r.code
-    )}</code></div></div>
-    <div class="field"><div class="label">Subscription ID</div><div class="value">${esc(
-      r.subscriptionId
-    )}</div></div>
-    <div class="field"><div class="label">Status</div><div class="value">${badge(
-      r.status
-    )}</div></div>
-    <div class="field"><div class="label">Issued</div><div class="value">${fmt(
-      r.issuedAt
-    )}</div></div>
-    <div class="field"><div class="label">Used</div><div class="value">${fmt(
-      r.usedAt
-    )}</div></div>
-    <div class="field"><div class="label">Email</div><div class="value">${esc(
-      r.customerEmail
-    )}</div></div>
+  dwBody.innerHTML = `
+    <div class="field"><div class="label">Code</div><div class="value"><code>${esc(r.code)}</code></div></div>
+    <div class="field"><div class="label">Subscription ID</div><div class="value">${esc(r.subscriptionId)}</div></div>
+    <div class="field"><div class="label">Status</div><div class="value">${badge(r.status)}</div></div>
+    <div class="field"><div class="label">Issued</div><div class="value">${fmt(r.issuedAt)}</div></div>
+    <div class="field"><div class="label">Used</div><div class="value">${fmt(r.usedAt)}</div></div>
+    <div class="field"><div class="label">Email</div><div class="value">${esc(r.customerEmail)}</div></div>
     <div class="field"><div class="label">Activation link</div><div class="value">${link}</div></div>
     <div class="field"><div class="label">QR</div><div class="value">${qr}</div></div>
   `;
-      }
+}
 
-      const refreshBtn = document.getElementById("refreshBtn");
-      refreshBtn.addEventListener("click", async () => {
-        const original = refreshBtn.textContent;
-        refreshBtn.textContent = "⟳"; // keep icon
-        refreshBtn.disabled = true;
-        try {
-          await load(); // reload table with current filters/page
-        } finally {
-          refreshBtn.disabled = false;
-          refreshBtn.textContent = original;
-        }
-      });
+const refreshBtn = document.getElementById('refreshBtn');
+refreshBtn.addEventListener('click', async () => {
+  // give a quick visual hint
+  const original = refreshBtn.textContent;
+  refreshBtn.textContent = 'Refreshing…';
+  refreshBtn.disabled = true;
+  try {
+    await load();   // re-fetches with current filters & page
+  } finally {
+    refreshBtn.disabled = false;
+    refreshBtn.textContent = original;
+  }
+});
 
-      // initial load
-      load();
-    </script>
-  </body>
+
+// initial load
+load();
+</script>
+</body>
 </html>
