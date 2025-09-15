@@ -1,7 +1,11 @@
-// api/activations.js
+// /api/activations.js
+import { sql } from "@vercel/postgres";
+
 export default async function handler(req, res) {
   try {
-    if (req.method !== "GET") return res.status(405).json({ ok: false, error: "Method not allowed" });
+    if (req.method !== "GET") {
+      return res.status(405).json({ ok: false, error: "Method not allowed" });
+    }
 
     const q         = (req.query.q || "").trim().toLowerCase();
     const statusQ   = (req.query.status || "").toLowerCase(); // "used" | "unused" | ""
@@ -11,84 +15,79 @@ export default async function handler(req, res) {
     const usedTo    = (req.query.usedTo || "").trim();
     const limit     = Math.min(Number(req.query.limit || 500), 2000);
 
-    if (!(process.env.GAS_URL && process.env.GAS_SECRET)) {
-      return res.status(500).json({ ok: false, error: "Storage not configured" });
-    }
+    const where = [];
+    const params = [];
 
-    const gasResp = await fetch(process.env.GAS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ secret: process.env.GAS_SECRET, op: "list_recent" })
-    });
-
-    const text = await gasResp.text();
-    let json;
-    try { json = JSON.parse(text); } catch {
-      return res.status(502).json({ ok: false, error: "GAS parse error", raw: text });
-    }
-    if (!json.ok) return res.status(502).json({ ok: false, error: "GAS error", detail: json });
-
-    const itemsRaw = Array.isArray(json.rows) ? json.rows : [];
-
-    const items = itemsRaw.map(r => ({
-      row: r.row,
-      code: String(r.code || ""),
-      subscriptionId: String(r.subscriptionId || ""),
-      status: (r.status || "").toLowerCase(), // used/unused
-      issuedAt: r.issuedAt ?? null,
-      usedAt: r.usedAt ?? null,
-      customerEmail: String(r.customerEmail || ""),
-      // optional, present in your sheet; safe to pass but we don't render the base64 in table
-      qrUrl: r.qrUrl || "",
-      activateUrl: r.activateUrl || ""
-    }));
-
-    // Helpers for date filtering (accept ISO yyyy-mm-dd or full datetime)
-    const toDate = (v) => v ? new Date(v) : null;
-    const inRange = (val, from, to) => {
-      if (!val) return false;
-      const d = new Date(val);
-      if (isNaN(d)) return false;
-      if (from && d < from) return false;
-      if (to && d > to) return false;
-      return true;
-    };
-    const iFrom = toDate(issuedFrom);
-    const iTo   = toDate(issuedTo ? issuedTo + "T23:59:59" : ""); // inclusive day
-    const uFrom = toDate(usedFrom);
-    const uTo   = toDate(usedTo ? usedTo + "T23:59:59" : "");
-
-    // Apply filters
-    let filtered = items;
-
+    // --- Free-text search across code, subscriptionId, email
     if (q) {
-      filtered = filtered.filter(x =>
-        x.code.toLowerCase().includes(q) ||
-        x.subscriptionId.toLowerCase().includes(q) ||
-        x.customerEmail.toLowerCase().includes(q)
-      );
-    }
-    if (statusQ === "used" || statusQ === "unused") {
-      filtered = filtered.filter(x => x.status === statusQ);
-    }
-    if (issuedFrom || issuedTo) {
-      filtered = filtered.filter(x => inRange(x.issuedAt, iFrom, iTo));
-    }
-    if (usedFrom || usedTo) {
-      filtered = filtered.filter(x => inRange(x.usedAt, uFrom, uTo));
+      where.push(`(lower(code) like $${params.length + 1} or lower(subscription_id) like $${params.length + 2} or lower(customer_email) like $${params.length + 3})`);
+      params.push(`%${q}%`, `%${q}%`, `%${q}%`);
     }
 
-    const total  = filtered.length;
-    const used   = filtered.filter(x => x.status === "used").length;
+    // --- Status filter
+    if (statusQ === "used" || statusQ === "unused") {
+      where.push(`status = $${params.length + 1}`);
+      params.push(statusQ);
+    }
+
+    // --- Issued date filters
+    if (issuedFrom) {
+      where.push(`issued_at >= $${params.length + 1}`);
+      params.push(new Date(issuedFrom));
+    }
+    if (issuedTo) {
+      where.push(`issued_at <= $${params.length + 1}`);
+      params.push(new Date(issuedTo + "T23:59:59"));
+    }
+
+    // --- Used date filters
+    if (usedFrom) {
+      where.push(`(used_at is not null and used_at >= $${params.length + 1})`);
+      params.push(new Date(usedFrom));
+    }
+    if (usedTo) {
+      where.push(`(used_at is not null and used_at <= $${params.length + 1})`);
+      params.push(new Date(usedTo + "T23:59:59"));
+    }
+
+    const whereSql = where.length ? "where " + where.join(" and ") : "";
+
+    // --- Totals
+    const totalsRes = await sql.query(
+      `select
+         count(*)::int as total,
+         sum(case when status='used' then 1 else 0 end)::int as used
+       from activation_codes ${whereSql}`,
+      params
+    );
+    const total  = totalsRes.rows[0]?.total || 0;
+    const used   = totalsRes.rows[0]?.used  || 0;
     const unused = total - used;
 
-    const itemsLimited = filtered.slice(0, limit);
+    // --- Items (list)
+    const itemsRes = await sql.query(
+      `select code, subscription_id, status, issued_at, used_at, customer_email
+       from activation_codes
+       ${whereSql}
+       order by issued_at desc
+       limit ${limit}`,
+      params
+    );
+
+    const items = itemsRes.rows.map(r => ({
+      code: r.code,
+      subscriptionId: r.subscription_id,
+      status: r.status,
+      issuedAt: r.issued_at,
+      usedAt: r.used_at,
+      customerEmail: r.customer_email || ""
+    }));
 
     return res.status(200).json({
       ok: true,
-      items: itemsLimited,
+      items,
       totals: { total, used, unused },
-      meta: { returned: itemsLimited.length, limit }
+      meta: { returned: items.length, limit }
     });
   } catch (err) {
     console.error("activations API error:", err);
